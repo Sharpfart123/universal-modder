@@ -499,6 +499,7 @@ ENGINES = {
     "defold": ("Defold", "misc-engines.md", "unpack game.arcd; Lua scripts"),
     "cocos": ("Cocos2d-x", "native.md", "Lua/JS scripts if bundled; else native hooks"),
     "haxe": ("Haxe/OpenFL/HaxeFlixel", "misc-engines.md", "assets/ overrides; hscript mod loaders where present (Polymod)"),
+    "iw": ("IW engine (Call of Duty)", "iw-engine.md", "data overrides in mods/<name>/*.iwd (GSC/CSC scripts, IWI textures, weapons) + fastfile (.ff) zone assets via linker_pc.exe or um fastfile"),
     "native": ("Unknown native engine", "native.md", "proxy-DLL loader + function hooks (MinHook/SafetyHook), memory reading; Ghidra/IDA + x64dbg + Cheat Engine"),
 }
 
@@ -751,6 +752,9 @@ def detect(ix: Index) -> tuple[list[tuple[str, int, list[str], dict]], dict]:
         add("cocos", 90, ix.find("*libcocos2d*.dll", "*cocos2d*.dll")[:1])
     if ix.has("lime.ndll", "*lime.hdll"):
         add("haxe", 80, ix.find("lime.ndll", "*lime.hdll")[:1])
+    if (ix.has("zone/*/*.ff", "zone/*.ff") or ix.has("main/*.iwd") or
+            ix.has("iw3sp.exe", "iw3mp.exe", "codwaw.exe", "codwawmp.exe", "iw4sp.exe", "iw4mp.exe")):
+        add("iw", 95, ix.find("zone/*/*.ff", "zone/*.ff", "main/*.iwd", "*iw*.exe", "*codwaw*.exe")[:3])
 
     if not hits:
         add("native", 10, ["no known engine signature"])

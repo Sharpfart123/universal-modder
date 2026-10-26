@@ -29,7 +29,8 @@ RAWFILE_PATTERN = re.compile(
 
 SUPPORTED_VERSIONS = {
     387: "Call of Duty: World at War (Treyarch T4)",
-    334: "Call of Duty 4: Modern Warfare (IW 3.0)",
+    5: "Call of Duty 4: Modern Warfare (IW 3.0)",
+    334: "Call of Duty 4: Modern Warfare (IW 3.0 asset v334)",
 }
 
 

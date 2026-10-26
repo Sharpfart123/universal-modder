@@ -12,8 +12,8 @@ The "IW Engine" is not a static platform; it diverged significantly with each re
 
 | Engine / Game | Fastfile Version | GSC Script Format | Distinct Architecture |
 |---|---|---|---|
-| **IW 3.0** (*CoD4: Modern Warfare*) | `334` (`0x14E`) | Plain text RawFile | SP campaign & MP only. No Zombies, no dismemberment system. |
-| **Treyarch T4** (*CoD: World at War*) | `387` (`0x183`) | Plain text RawFile | Forked from IW 3.0. Added Nazi Zombies (`_zombiemode`), 4-player co-op, limb gibbing/crawlers (`self.has_legs`), flamethrower charring masks (`clothcharr`), and Patch 1.4 script routing (`patch.ff`). |
+| **IW 3.0** (*CoD4: Modern Warfare*) | Container `5` / Asset `334` | Plain text RawFile | SP campaign (`iw3sp.exe`) & MP (`iw3mp.exe`). Mods stored in `<GameRoot>/Mods/<name>/`. Reference mod: `Mods/ModWarfare/`. |
+| **Treyarch T4** (*CoD: World at War*) | Container `387` (`0x183`) | Plain text RawFile | Forked from IW 3.0. Merged SP/Co-op (`CoDWaW.exe`). Mods moved to `%LOCALAPPDATA%/Activision/CoDWaW/mods/<name>/`. Added Nazi Zombies, 4-player co-op, limb gibbing/crawlers (`self.has_legs`), flamethrower charring masks (`clothcharr`), and Patch 1.4 script routing (`patch.ff`). |
 | **IW 4.0** (*Modern Warfare 2*) | `276`+ | Encrypted / Packed | Encrypted FastFiles, altered asset headers, Steamworks matchmaking. |
 | **Treyarch T5** (*Black Ops 1*) | `473` (`0x1D9`) | Plain text RawFile | Memory partitions (zones 0-4), Lua UI integration, SndBank resident audio. |
 | **Treyarch T6+** (*Black Ops 2+*) | Variable | **Compiled Bytecode** | GSC scripts are compiled into binary bytecode rather than raw text. Cannot be extracted with text regex; requires a bytecode decompiler. |
@@ -30,8 +30,13 @@ Engine resolves assets via `FS_Startup` in strict priority order:
 2. **Mod Archives (`mods/<ModName>/*.iwd`)**: Loaded in reverse alphabetical order (`z_*.iwd` overrides `a_*.iwd`). Standard ZIP format.
 3. **Mod Fastfile (`mods/<ModName>/mod.ff`)**: Compiled binary assets (compiled menus, particle effects `.efx`, compiled shaders).
 4. **Base game `raw/` and `main/`**: Stock loose assets.
-5. **Base game IWDs (`main/iw_00.iwd` - `iw_27.iwd`)**: Stock textures, materials, and sounds.
+5. **Base game IWDs (`main/iw_00.iwd` - `iw_13.iwd` in CoD4, `iw_27.iwd` in WaW)**: Stock textures, materials, and sounds.
 6. **Base game Fastfiles (`zone/<language>/*.ff`)**: Core level and common binaries (`code_post_gfx.ff`, `common.ff`, `<map>.ff`, `patch.ff`).
+
+> [!NOTE]
+> **Mod Installation Directories:**
+> * **Call of Duty 4 (IW 3.0)**: Mods live in `<GameRoot>/Mods/<ModName>/`. CoD4 ships with an official reference mod: `Mods/ModWarfare/`.
+> * **Call of Duty: World at War (T4)**: Mods live in `%LOCALAPPDATA%/Activision/CoDWaW/mods/<ModName>/` (Windows UAC redirection out of Program Files). Installing mods to `<GameRoot>/mods/` in WaW often fails or gets quarantined by Windows VirtualStore.
 
 > [!TIP]
 > **Zero-Linker Live Iteration:** GSC/CSC scripts, IWI textures, weapons, and sound aliases can be placed loose or inside an `.iwd` in `mods/<ModName>/`. They load immediately without recompiling `mod.ff`. Only compile Fastfiles when shipping or adding binary effects (`.efx`), custom materials, or global precaches.
@@ -102,7 +107,7 @@ Patch 1.4 redirected map startup scripts in `zone/<language>/patch.ff`:
 In retail Call of Duty: World at War (T4) and Call of Duty 4 (IW 3.0), FastFiles (`.ff`) are standard zlib streams with a 12-byte header:
 * **Header Layout**:
   * Bytes 0–7: Container magic (`IWffu100` for uncompressed header, `IWff0100` for compressed).
-  * Bytes 8–11: 4-byte little-endian version number (`387` for WaW, `334` for CoD4).
+  * Bytes 8–11: 4-byte little-endian version number (`5` for CoD4 container / `334` asset, `387` for WaW).
   * Byte 12+: Standard zlib compressed payload stream (`0x78 0x01` / `0x78 0x9C`).
 * **RawFile Serialized Layout**:
   Unlike later titles which compile scripts into bytecode, **World at War and CoD4 store GSC and CSC scripts as 100% human-readable plain text source code** inside `ASSET_TYPE_RAWFILE` records:

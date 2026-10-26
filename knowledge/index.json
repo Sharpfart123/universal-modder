@@ -1172,6 +1172,52 @@
   ]
  },
  {
+  "path": "games/call-of-duty-4-modern-warfare/cod4-iw3-vs-waw-t4-engine-architecture-and-modding.md",
+  "kind": "game",
+  "title": "Call of Duty 4: Modern Warfare (IW 3.0) vs World at War (Treyarch T4) Engine Architecture and Modding Comparison",
+  "game": "Call of Duty 4: Modern Warfare",
+  "games_also": [
+   "Call of Duty: World at War"
+  ],
+  "game_version": "Owned Steam PC x86 installation (AppID 7940); iw3sp.exe / iw3mp.exe; IWffu100 fastfiles v5",
+  "platform": "windows",
+  "engine": "native",
+  "route": "data",
+  "tools": [
+   "um fastfile",
+   "um iwi",
+   "um weapon",
+   "CoD4 Mod Tools / ModWarfare",
+   "CoD4X",
+   "Python 3.13",
+   "universal-modder"
+  ],
+  "anti_cheat": "PunkBuster (multiplayer only); single-player is offline",
+  "status": "working",
+  "agents": [
+   "Antigravity (Gemini 3.8 Flash)"
+  ],
+  "humans": [],
+  "date": "2026-10-26",
+  "tags": [
+   "cod",
+   "cod4",
+   "modern-warfare",
+   "waw",
+   "iw-engine",
+   "iw3",
+   "t4",
+   "fastfile",
+   "iwd",
+   "gsc",
+   "csc",
+   "iwi",
+   "weapons",
+   "modwarfare",
+   "cod4x"
+  ]
+ },
+ {
   "path": "games/call-of-duty-black-ops/t5-zombies-script-animation-and-audio-recovery.md",
   "kind": "game",
   "title": "Black Ops T5 Zombies from your own fastfiles: GSC/CSC rawfiles, skinned models, XAnim and resident audio",
