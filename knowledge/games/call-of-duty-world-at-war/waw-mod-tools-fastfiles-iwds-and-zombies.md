@@ -1,0 +1,115 @@
+---
+kind: game
+title: "Call of Duty: World at War modding architecture: Fastfiles, IWD overrides, GSC/CSC scripting and Zombies pipeline"
+game: "Call of Duty: World at War"
+games_also: ["Call of Duty: Black Ops"]
+game_version: "Owned Steam PC x86 installation (AppID 10090); CoDWaW.exe; IWffu100 fastfiles v387"
+platform: windows
+engine: native
+route: data
+tools: ["CoD WaW Mod Tools (sp_tool.exe, linker_pc.exe, Asset Manager, Converter)", "Python 3.13", "universal-modder", "T4M", "um fastfile"]
+anti_cheat: "PunkBuster (multiplayer only); single-player / co-op / zombies is offline / local listen server"
+status: working
+agents: ["Antigravity (Gemini 3.8 Flash)"]
+humans: []
+date: 2026-10-26
+tags: [cod, waw, zombies, fastfile, linker, iwd, gsc, csc, efx, mod-tools, nazi-zombies, textures, weapons]
+---
+
+# Call of Duty: World at War: Fastfiles, IWD overrides, GSC/CSC scripting and Zombies pipeline
+
+Field note on Call of Duty: World at War (Treyarch T4 engine / IW 3.0 derived) modding architecture, internal file formats, texture library, game code, and Nazi Zombies gameplay pipeline.
+
+## Setup
+
+- **Game:** Call of Duty: World at War (Steam AppID 10090), native x86 DirectX 9 executable `CoDWaW.exe`.
+- **Mod Tools Suite:** Located in root directory (`bin/linker_pc.exe`, `sp_tool.exe`, `converter.exe`, `asset_manager.exe`, `CoDWaWRadiant.exe`, `EffectsEd3.exe`, `zone_source/`, `raw/`, `deffiles/`).
+- **Mod Directory Target:** `%LOCALAPPDATA%\Activision\CoDWaW\mods\<ModName>\` and `<GameRoot>\mods\<ModName>\`.
+- **Engine Extension (T4M):** Installed via proxy `d3d9.dll`. Patches memory limits (`MAX_ASSET_IMAGES`, `MAX_STRING_LOOKUPS`) preventing crashes with high-poly models and custom texture packs.
+- **Python:** Python 3.13 for archive packing, texture encoding/decoding, and verification.
+
+## Route
+
+Use a dual-layer approach depending on asset type:
+1. **Script / Logic / Textures / Weapons / Sounds (Data Override):** Package directly into `<ModName>.iwd` (standard ZIP archive) and loose folders in the mod directory. The engine loads GSC scripts, IWI textures, weapon files, and raw assets without running fastfile linkers.
+2. **Particle Effects / Shaders / Binary Assets (Fastfile Linker):** Compile with `bin/linker_pc.exe` into `mod.ff` via `zone_source/mod.csv`.
+
+## How the game works
+
+### Filesystem Precedence (`FS_Startup`)
+1. Loose files in `mods/<ModName>/` (highest priority).
+2. Archives in `mods/<ModName>/*.iwd` (reverse alphabetical order: `z_*.iwd` overrides `a_*.iwd`).
+3. Mod Fastfile (`mods/<ModName>/mod.ff`).
+4. Base game loose files in `main/` or `raw/`.
+5. Base game IWDs in `main/iw_00.iwd` through `iw_27.iwd`.
+6. Base game Fastfiles in `zone/<language>/*.ff` (`<map>.ff`, `common.ff`, `code_post_gfx.ff`).
+
+### FastFile Binary Layout & Script Extraction
+Retail FastFiles (`.ff`) use a 12-byte header followed by standard zlib compressed payloads:
+- Bytes 0-7: ASCII magic `IWffu100` (uncompressed header) or `IWff0100` (compressed header).
+- Bytes 8-11: 4-byte uint32 little-endian version number (`387` for World at War, `334` for CoD4).
+- Bytes 12+: Standard zlib payload stream.
+
+In World at War, GSC and CSC gameplay scripts are stored as 100% human-readable plain text source code inside `ASSET_TYPE_RAWFILE` records:
+- Sentinel `0xFFFFFFFF` (4 bytes)
+- Length (4-byte uint32 little-endian)
+- Sentinel `0xFFFFFFFF` (4 bytes)
+- Name string (null-terminated ASCII path, e.g. `maps/nazi_zombie_factory.gsc\0`)
+- Raw text payload (exactly `Length` bytes)
+
+The toolkit provides `um fastfile list <file.ff>` and `um fastfile dump <file.ff> -o <dir>` to inspect and dump all scripts, configs, and menus without third-party binaries.
+
+
+### Texture Library & IWI v6 Format
+The game includes over 9,200 texture files across `main/iw_00.iwd` to `iw_13.iwd` (base game) and `iw_22.iwd` to `iw_26.iwd` (DLCs). All `.iwi` files in WaW share a 32-byte header:
+- Bytes 0-2: `IWi` magic string.
+- Byte 3: `0x06` (version 6).
+- Byte 4: Pixel format ID (`0x0B` = DXT1/BC1 diffuse/eyes, `0x0C` = DXT3/BC2 decals, `0x0D` = DXT5/BC3 normal/specular, `0x01` = ARGB8, `0x02` = RGB8 skyboxes, `0x04` = A8 masks, `0x06` = LA8).
+- Bytes 6-7: Height in pixels (uint16 little endian).
+- Bytes 8-9: Width in pixels (uint16 little endian).
+- Bytes 10-11: Depth (uint16 little endian, 1 for 2D).
+- Bytes 12-27: Mipmap offset table (4 entries, uint32 little endian).
+- Bytes 32+: Mipmaps stored in reverse order (smallest 1x1 mip first, full resolution mip0 at the very end of the file).
+
+### Material Architecture (`raw/materials/`)
+Over 7,200 material files map textures to HLSL shaders:
+- **Technique Sets:** `unlit` (self-illuminating, zombie eyes), `l_sm_r0c0n0s0` (diffuse + normal + specular), `l_sm_r0c0d0n0s0_clothcharr` (dynamic flamethrower charring with `clothcharrMaskMap`).
+- **Parameters:** `colorTint` (`float32[4]` RGBA multiplier) allows color adjustments without modifying texture files.
+
+### Weapons & Ballistics Architecture
+Weapon files in `raw/weapons/sp/` and `raw/weapons/mp/` are plain-text slash-delimited key-value dictionaries (e.g. `damage\1000\clipSize\20\maxAmmo\160\projectileSpeed\3200\explosionRadius\64\`). Any weapon parameter (damage, ammo, reload speed, recoil kick, spread, projectile speed) can be live-edited without fastfile compilation by dropping the file into `<ModName>/weapons/sp/<name>`.
+
+### Nazi Zombies Gameplay Engine
+- **Health Formula:** Base health is 150 on Round 1 (`level.zombie_vars["zombie_health_start"]`). Rounds 2-9 increase linearly by 100 per round (`health = 150 + 100 * (round - 1)`). Rounds 10+ increase exponentially by 10% per round (`health = int(health * 1.1)`).
+- **Active AI Cap:** Exactly 24 zombies active on the map concurrently (`zombie_max_ai = 24`).
+- **Powerup Drop Algorithm (`_zombiemode_powerups.gsc`):** Drops are triggered when team cumulative score passes `score_to_drop = (players * 500) + 2000`. Once passed, the threshold escalates by 14% (`drop_increment *= 1.14`), capped at 4 drops per round maximum, drawn from a shuffled deck.
+- **Perks & Pack-a-Punch:** Base player health is 100. Juggernog grants `+160` health (surviving 5 hits instead of 2). Pack-a-Punch animates the weapon inward for 15 seconds (`level.packapunch_timeout = 15`), returning the upgraded variant.
+- **Wunderwaffe DG-2:** Arcs up to 5 times (`tesla_max_arcs = 5`), kills up to 20 zombies per shot (`tesla_max_enemies_killed = 20`), and has a 50% decapitation rate.
+- **Client vs Server Split:** Server GSC (`maps/`) handles authoritative damage, scoring, and AI. Client CSC (`clientscripts/`) handles particle attachments, dynamic light flickers, and eye glow attachment without consuming server entity slots (`MAX_GENTITIES`).
+
+## Verification
+
+1. Mod loaded through CoDWaW main menu (`Mods -> Gemini_test`).
+2. Map started via `map nazi_zombie_prototype` in developer console.
+3. In-game rendering verified: eyeball 3D mesh textured with pure red DXT1 texture and red flare billboard playing simultaneously with no yellow/amber bleed-through.
+4. Base game verification: confirmed stock bytes on `raw/maps/_zombiemode_prototype.gsc` and `raw/materials/mtl_char_ger_nazizombie_eyes`.
+
+## Gotchas
+
+1. **Dual-Layer Zombie Eyes:** Zombie eyes are two separate layers: the particle flare (`misc/fx_zombie_eye_single.efx`) and the eyeball mesh material (`mtl_char_ger_nazizombie_eyes` -> `images/zombie_eye.iwi`). Modifying only the flare leaves the underlying amber eyeball texture visible; both must be overridden.
+2. **`linker_pc.exe` CWD Requirement:** The linker resolves `../zone_source/` relative to working directory. You must change CWD to `<install>\bin\` before invoking `linker_pc.exe`.
+3. **Piped Input to Linker:** Always pipe standard input (`echo. | linker_pc.exe ...`) to prevent the CLI from hanging indefinitely on asset warnings.
+4. **Assetlist Stub:** `linker_pc.exe` expects `zone_source/<language>/assetlist/<zone>.csv` to exist; an empty 0-byte file satisfies it.
+5. **Reverse Mipmap Encoding:** IWI v6 stores mipmaps from 1x1 up to full mip0 at the file end. If writing custom IWI tools, packing mips in normal order causes corrupt textures.
+6. **T4M Limit Expansions:** Complex mods with many custom textures or high-poly models will crash vanilla `CoDWaW.exe` with `MAX_ASSET_IMAGES` errors unless T4M (`d3d9.dll`) is active in the game root.
+7. **`G_Spawn: no free entities` in Vanilla:** Vanilla `CoDWaW.exe` has a strict 1024 entity limit (`MAX_GENTITIES`). Spawning too many script models, active risers, or debris objects crashes the game. T4M intercepts entity allocations and expands limits, effectively mitigating this in modded playthroughs.
+8. **Loose Iteration vs Fastfile Release:** For rapid iteration, keep audio, textures, and scripts loose in `<ModName>.iwd`. Only compile into `mod.ff` when ready for distribution to optimize load times and save disk footprint.
+9. **Treyarch Patch 1.4 Map Script Redirection (`patch.ff`):** In PC Patch 1.4+, `patch.ff` overrides `nazi_zombie_prototype.gsc` to call `maps/_zombiemode_prototype::main()` (spawner: `_zombiemode_spawner_prototype.gsc`), and `nazi_zombie_asylum.gsc` to call `maps/_zombiemode_asylum::main()` (spawner: `_zombiemode_spawner_asylum.gsc`). Shi No Numa and Der Riese call `maps/_zombiemode::main()`. Modifying only `_zombiemode.gsc` leaves Nacht and Verrückt 100% stock because the engine resolves the map-specific copies in `patch.ff`. A universal zombie mod must patch and compile all 3 master scripts and all 3 spawner scripts into `mod.ff`.
+10. **Engine FontScale Underflow Bug (`fontScale < 1.0` Explodes Text Size):** In the IW3 / WaW 2D renderer, `HudElem.fontScale` does not support floats under 1.0 (such as `0.85`, `0.92`). Passing $< 1.0$ causes an internal UV texture projection underflow, rendering text 10x larger and blowing across the screen. Always enforce `fontScale >= 1.0` and manage width via coordinate spacing.
+11. **Strict 31-32 Client `HudElem` Budget:** The engine allocates a hard budget of ~31-32 active `HudElem` structs per client. Exceeding this limit causes subsequent elements to drop silently or disappear from the screen.
+12. **`SetText()` Does Not Auto-Wrap:** `SetText()` does not perform line-wrapping. Multi-line UI elements must be split into separate `HudElem` instances with explicit `y` coordinate offsets.
+13. **Singleplayer `iprintln` / `iprintlnbold` Function Scope:** In SP / Nazi Zombies, `iprintln` and `iprintlnbold` are strictly global functions (`iprintlnbold(msg);`), NOT entity member methods (`player iprintlnbold(msg);`). Calling them as player methods fails silently without rendering on screen.
+14. **GSC Single-Pass "Unreachable Code" Compiler Crash:** The GSC bytecode compiler halts server initialization with `Server script compile error: unreachable code` if an unconditional `return;` is placed before existing statements. Any early-return suppression must be placed inside a conditional guard (`if (condition) return;`).
+15. **Cod2Map Concave Winding Assertion (`tris_mergeconcave.cpp:1120`):** In `cod2map.exe`, merging overly complex concave brush geometry or dense terrain windings triggers `ASSERTION: w->ptCount <= ARRAY_COUNT( indices )`. Splitting concave brushes into convex primitives or passing `-keeplightmapcuts` / `-nomerge` avoids compiler crashes.
+
+

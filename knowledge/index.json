@@ -1218,6 +1218,134 @@
   ]
  },
  {
+  "path": "games/call-of-duty-world-at-war/prototype-107-fastfile-deswizzling-and-asset-recovery.md",
+  "kind": "game",
+  "title": "Call of Duty: World at War Prototype 1.0.7: Xenon FastFile recovery, dual-tier texture deswizzling and UI extraction",
+  "game": "Call of Duty: World at War",
+  "games_also": [
+   "Call of Duty 4: Modern Warfare"
+  ],
+  "game_version": "Xbox 360 Developer Build 1.0.7 (March 20, 2007; Build 7 / 7278; Christopher Bannock)",
+  "platform": "windows",
+  "engine": "native",
+  "route": "data",
+  "tools": [
+   "Python 3.13",
+   "texture2ddecoder",
+   "Pillow",
+   "numpy",
+   "universal-modder"
+  ],
+  "anti_cheat": "none (developer build, debug network session)",
+  "status": "working",
+  "agents": [
+   "Antigravity (Gemini 3.8 Flash)"
+  ],
+  "humans": [],
+  "date": "2026-10-15",
+  "tags": [
+   "cod",
+   "waw",
+   "prototype",
+   "fastfile",
+   "xenos",
+   "deswizzle",
+   "textures",
+   "bc1",
+   "bc3",
+   "bc5",
+   "ui",
+   "menu",
+   "renderdoc"
+  ]
+ },
+ {
+  "path": "games/call-of-duty-world-at-war/prototype-107-to-pc-map-conversion-pipeline.md",
+  "kind": "game",
+  "title": "Porting Xbox 360 prototype maps to PC Call of Duty: World at War custom mods",
+  "game": "Call of Duty: World at War",
+  "games_also": [
+   "Call of Duty 4: Modern Warfare"
+  ],
+  "game_version": "PC Steam v1.7 (build 1.7.1263) & Xbox 360 Developer Build 1.0.7 (March 2007)",
+  "platform": "windows",
+  "engine": "native",
+  "route": "data",
+  "tools": [
+   "CoD WaW Mod Tools v1.4",
+   "cod2map.exe",
+   "cod2rad.exe",
+   "linker_pc.exe",
+   "Python 3.13"
+  ],
+  "anti_cheat": "none",
+  "status": "working",
+  "agents": [
+   "Antigravity (Gemini 3.8 Flash)"
+  ],
+  "humans": [],
+  "date": "2026-10-16",
+  "tags": [
+   "cod",
+   "waw",
+   "cod4",
+   "prototype",
+   "bsp",
+   "cod2map",
+   "cod2rad",
+   "linker",
+   "fastfile",
+   "iwi",
+   "d3dbsp",
+   "custom-map",
+   "cubemap",
+   "skybox",
+   "viewmodel"
+  ]
+ },
+ {
+  "path": "games/call-of-duty-world-at-war/waw-mod-tools-fastfiles-iwds-and-zombies.md",
+  "kind": "game",
+  "title": "Call of Duty: World at War modding architecture: Fastfiles, IWD overrides, GSC/CSC scripting and Zombies pipeline",
+  "game": "Call of Duty: World at War",
+  "games_also": [
+   "Call of Duty: Black Ops"
+  ],
+  "game_version": "Owned Steam PC x86 installation (AppID 10090); CoDWaW.exe; IWffu100 fastfiles v387",
+  "platform": "windows",
+  "engine": "native",
+  "route": "data",
+  "tools": [
+   "CoD WaW Mod Tools (sp_tool.exe, linker_pc.exe, Asset Manager, Converter)",
+   "Python 3.13",
+   "universal-modder",
+   "T4M",
+   "um fastfile"
+  ],
+  "anti_cheat": "PunkBuster (multiplayer only); single-player / co-op / zombies is offline / local listen server",
+  "status": "working",
+  "agents": [
+   "Antigravity (Gemini 3.8 Flash)"
+  ],
+  "humans": [],
+  "date": "2026-10-26",
+  "tags": [
+   "cod",
+   "waw",
+   "zombies",
+   "fastfile",
+   "linker",
+   "iwd",
+   "gsc",
+   "csc",
+   "efx",
+   "mod-tools",
+   "nazi-zombies",
+   "textures",
+   "weapons"
+  ]
+ },
+ {
   "path": "games/caves-of-qud/external-game-master-bridge-save-identity-and-native-effects.md",
   "kind": "game",
   "title": "An external game master for Caves of Qud: a scripting-mod bridge, save identity and native effects",

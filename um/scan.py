@@ -415,11 +415,15 @@ KNOWN = {
     "the binding of isaac: rebirth": ("Lua mod in <install>/mods/<name>/ (main.lua, content/*.xml, resources/ overrides), IsaacDocs API; "
                                       "EnableMods=1 + EnableDebugConsole=1 in options.ini; vanilla assets via tools/ResourceExtractor",
                                       "isaac.md"),
+    "call of duty: world at war": ("dual route: zero-linker data override in mods/<name>/*.iwd (GSC/CSC, IWI textures, weapons) + mod.ff via linker_pc.exe for binary assets; T4M (d3d9.dll) raises limits", "iw-engine.md"),
+    "call of duty 4: modern warfare": ("data overrides in mods/<name>/*.iwd + mod.ff via linker_pc.exe; CoD4X for modern client/server engine extensions", "iw-engine.md"),
     "minecraft": ("Fabric (Mixin) or NeoForge", "minecraft.md"),
 }
 
 # known games recognised by their files when the folder name doesn't say (renamed, portable or non-store installs)
 KNOWN_FILES = [
+    ("call of duty: world at war", ("codwaw.exe", "codwawmp.exe")),
+    ("call of duty 4: modern warfare", ("iw3sp.exe", "iw3mp.exe")),
     ("dwarf fortress", ("data/vanilla/*/info.txt", "dwarf fortress.exe", "dwarfort")),
     ("mindustry", ("mindustry.exe", "mindustry.json", "mindustry.jar", "mindustry.app/contents/resources/desktop.jar")),
     ("the binding of isaac: rebirth", ("isaac-ng.exe",)),
@@ -427,6 +431,7 @@ KNOWN_FILES = [
 
 # save/profile folders that don't follow the game's name ({profile}, {documents}, {appdata}, {localappdata})
 KNOWN_SAVES = {
+    "call of duty: world at war": ["{localappdata}/Activision/CoDWaW/mods", "{localappdata}/Activision/CoDWaW/players"],
     "age of empires ii: definitive edition": ["{profile}/Games/Age of Empires 2 DE"],
     "terraria": ["{documents}/My Games/Terraria"],
     "tmodloader": ["{documents}/My Games/Terraria/tModLoader"],
