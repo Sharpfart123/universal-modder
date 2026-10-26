@@ -126,3 +126,63 @@ um fastfile dump zone/english/patch.ff -o extracted_patch/
 um fastfile dump zone/english/nazi_zombie_factory.ff -o der_riese_scripts/
 ```
 
+## 7. IWI v6 Texture Conversion (`um iwi`)
+
+Call of Duty games utilize Infinity Ward Image (`.iwi`) containers for textures. World at War and CoD4 use **version 6**:
+* **Header Structure (28 bytes)**:
+  * Bytes 0–3: Magic `IWi\x06` (ASCII `IWi` + version byte `0x06`).
+  * Byte 4: Format identifier (`0x0B` = DXT1 opaque/1-bit alpha, `0x0D` = DXT5 interpolated alpha).
+  * Byte 5: Flags (e.g. `0x03`).
+  * Bytes 6–7: Dimensions height (`uint16_t` little-endian).
+  * Bytes 8–9: Dimensions width (`uint16_t` little-endian).
+  * Bytes 10–11: Depth (`uint16_t`, 1 for 2D textures).
+  * Bytes 12–27: 4 mipmap end offsets (`uint32_t[4]` little-endian).
+* **Reverse Mipmap Ordering**:
+  Crucially, mipmaps in IWI v6 files are stored in **reverse order**: the smallest mipmap is stored first immediately following the 28-byte header, and the full-resolution base image (mip 0) is stored last at the end of the file.
+
+### CLI Usage:
+```bash
+# Convert a custom PNG texture into game-ready IWI v6 format:
+um iwi png2iwi hud_custom_icon.png images/hud_custom_icon.iwi --format dxt5 --mips
+
+# Decode an existing in-game IWI v6 texture back to PNG for inspection/editing:
+um iwi iwi2png images/weapon_usa_colt45.iwi raw_textures/colt.png
+```
+
+## 8. Weapon File Editing (`um weapon`)
+
+Call of Duty weapons are defined in text files using a single-backslash delimited dictionary format starting with `WEAPONFILE\`. Over 300 properties configure ammunition, damage, viewmodels, recoil, spread, and sound effects.
+
+### Key Weapon Attributes:
+* `damage` / `minDamage`: Base hit point damage and minimum damage at maximum falloff range.
+* `damageType`: `bullet`, `grenade`, `splash`, `fire`, etc.
+* `clipSize` / `maxAmmo` / `startAmmo`: Magazine capacity and reserve pools.
+* `fireTime`: Interval between rounds (seconds).
+* `projectileModel`: Swaps hitscan bullets for simulated physics projectiles (e.g., `projectile_usa_m9a1_riflegrenade`).
+
+### CLI Usage:
+```bash
+# Inspect all weapon stats or query a specific key:
+um weapon get weapons/sp/colt
+um weapon get weapons/sp/colt damage
+
+# Modify specific stats and output to a mod folder:
+um weapon set weapons/sp/colt damage=250 clipSize=14 -o mods/MyMod/weapons/sp/colt_modded
+
+# Clone a weapon with presets (e.g. explosive ammo or upgraded stats):
+um weapon clone weapons/sp/colt mods/MyMod/weapons/sp/colt_explosive --damage 500 --clip 14 --explosive
+
+# Compare differences between two weapon definitions:
+um weapon diff weapons/sp/colt mods/MyMod/weapons/sp/colt_explosive
+```
+
+## 9. Reference Starter Example
+
+See `examples/cod-waw-zombies-starter/` for a complete working reference mod demonstrating:
+* Zero-linker live iteration via `.iwd` packaging.
+* Clean override of `maps/nazi_zombie_prototype.gsc` (Nacht der Untoten).
+* Custom weapon implementation (`weapons/sp/colt_starter`).
+* Crash-safe HUD implementation adhering to the `fontScale >= 1.0` requirement and 31-element limit.
+* Automated packager script (`pack.py`).
+
+
