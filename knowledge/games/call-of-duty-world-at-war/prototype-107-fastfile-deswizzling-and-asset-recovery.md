@@ -3,9 +3,9 @@ kind: game
 title: "Call of Duty: World at War Prototype 1.0.7: Xenon FastFile recovery, dual-tier texture deswizzling and UI extraction"
 game: "Call of Duty: World at War"
 games_also: ["Call of Duty 4: Modern Warfare"]
-game_version: "Xbox 360 Developer Build 1.0.7 (March 20, 2007; Build 7 / 7278; Christopher Bannock)"
+game_version: "Xbox 360 developer build 1.0.7 (March 20, 2007; build 7 / 7278), a leaked prototype"
 platform: windows
-engine: native
+engine: iw
 route: data
 tools: ["Python 3.13", "texture2ddecoder", "Pillow", "numpy", "universal-modder"]
 anti_cheat: "none (developer build, debug network session)"
@@ -22,6 +22,9 @@ Field note on reverse-engineering the March 20–27, 2007 developer build of Cal
 
 ## Setup
 
+- **Source:** a leaked Treyarch prototype. This note is what we learned from it, in our own words. Its files, and
+  everything extracted or converted from them (textures, menus, the converted IWIs), stay private: outside any repo
+  and any release.
 - **Target Build:** Treyarch internal developer build 1.0.7 (March 20, 2007; executable timestamp March 27, 2007).
 - **FastFiles (14 total):** 12 version 302 (`0x12E`), 1 version 204 (`descent.ff`), 1 version 372 (`mp_invasion.ff`).
 - **Loose Streaming Textures (`highmip/`):** 3,339 loose `.hi` streaming mipmap files (512 KB each).
@@ -74,6 +77,9 @@ Xenon textures are stored in 2D macro-tiles ($32 \times 32$ blocks) with bitwise
    - 3,339 loose `.hi` textures in `highmip/` converted to PNG in `Converted textures/`.
    - 635 embedded textures across all 14 FastFiles extracted into clean subfolders in `extracted_ff_images/`.
    - 0 decode errors, 0 missing files.
+
+Not verified: names and pixels from the embedded (secondary) scanner beyond the menu background. Only that image was
+matched against a capture; the rest passed the gradient check.
 
 ## Gotchas
 

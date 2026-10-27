@@ -5,7 +5,7 @@ game: "Call of Duty: World at War"
 games_also: ["Call of Duty 4: Modern Warfare"]
 game_version: "PC Steam v1.7 (build 1.7.1263) & Xbox 360 Developer Build 1.0.7 (March 2007)"
 platform: windows
-engine: native
+engine: iw
 route: data
 tools: ["CoD WaW Mod Tools v1.4", "cod2map.exe", "cod2rad.exe", "linker_pc.exe", "Python 3.13"]
 anti_cheat: "none"
@@ -23,7 +23,10 @@ tags: [cod, waw, cod4, prototype, bsp, cod2map, cod2rad, linker, fastfile, iwi, 
 ## Setup
 
 - **Target Game:** Call of Duty: World at War PC (Steam v1.7 / 1.7.1263).
-- **Source Build:** Xbox 360 Developer Build 1.0.7 (March 20, 2007, Christopher Bannock).
+- **Source Build:** Xbox 360 Developer Build 1.0.7 (March 20, 2007), a leaked Treyarch prototype. The ported maps are
+  built from its data (geometry rebuilt from its zones, its textures and skybox), so they stay private: never in a
+  repo, a public release or on a public server. This note is what we learned, in our own words.
+- **Multiplayer:** the ported maps were run with `+devmap` on a local listen server only.
 - **Compilers:** Official CoD: WaW Mod Tools SDK (`bin/cod2map.exe`, 32-bit `bin/cod2rad.exe`, `bin/linker_pc.exe`).
 - **Target Usermap Directory:** `%LOCALAPPDATA%\Activision\CoDWaW\usermaps\<mapname>\`.
 - **Target Mod Directory:** `%LOCALAPPDATA%\Activision\CoDWaW\mods\<mapname>\`.
@@ -54,9 +57,9 @@ Because usermaps and mods directories take strict precedence over the base game 
 - Standard 2D textures use the 28-byte (`0x1C`) IWI v6 container:
   - `0x00 - 0x03`: Magic `IWi\x06`
   - `0x04`: Format byte (`0x0B` for DXT1, `0x0D` for DXT5, `0x0E` for DXN/BC5, `0x02` for 24-bit BGR8)
-  - `0x05`: Flags (`0x03` = 2D texture, `0xC4` = cubemap + mipmaps + RGB)
+  - `0x05`: Flags (`0x03` = no picmip + no mipmaps, as on a single-level 2D texture; `0xC4` = cubemap + clamp U/V, with mipmaps because `0x02` isn't set)
   - `0x06 - 0x0B`: Dimensions `uint16` ($w, h, d$)
-  - `0x0C - 0x1B`: 4 `uint32` little-endian cumulative mip offsets.
+  - `0x0C - 0x1B`: 4 `uint32` little-endian file sizes for picmip 0-3 (the file size up to and including that mip level).
 - **Skybox Cubemaps (`images/<name>_ft.iwi`)**:
   - All CoD skyboxes are 6-face cubemaps stored in standard DirectX 9 face order: 0: +X (Right), 1: -X (Left), 2: +Y (Top), 3: -Y (Bottom), 4: +Z (Front), 5: -Z (Back).
   - Pixel data is stored in reverse mip order (from $1 \times 1$ up to $1024 \times 1024$). In the 28-byte header, `mip3` is offset after $128 \times 128$, `mip2` after $256 \times 256$, `mip1` after $512 \times 512$, and `mip0` after $1024 \times 1024$ (the full file size).
@@ -83,7 +86,7 @@ For authentic prototype lighting:
 
 ## Automated One-Go Build Pipeline (`tools/cod_map_porter.py`)
 
-All steps are codified into a single automated CLI tool:
+All steps are codified into a single automated CLI tool (our own, unpublished; it isn't in this repo):
 ```powershell
 python tools/cod_map_porter.py --map <mapname>
 ```
@@ -101,6 +104,7 @@ The pipeline executes the following 4 stages automatically:
 
 - **Compiler Oracle:** `cod2map.exe` confirmed clean triangle windings, portals, and convex hulls. `cod2rad.exe` solved 6 radiosity bounces in 1 second. `linker_pc.exe` linked `mp_bjd_test.ff` (1,206,048 bytes) with zero missing assets.
 - **Engine Oracle:** Booted game via `CoDWaWmp.exe +devmap mp_bjd_test`. Verified 1:1 visual match with Xbox 360 prototype captures: warm tan floor, lime-green building, authentic US Marine viewarms, and seamless high-resolution Chechnya skybox cubemap.
+- **Not verified:** the maps with other players, or on a dedicated server; only `+devmap` on a local listen server.
 
 ## Gotchas
 
@@ -142,6 +146,8 @@ The pipeline executes the following 4 stages automatically:
    - **Fix:** Always compile full multi-level reverse mip pyramids ($1 \times 1$ up to $W \times H$, 174,804 bytes for $512 \times 512$ DXT1) with accurate header offsets. Purge any obsolete loose `.iwi` files from `mods/<mod>/images/` and ensure `<map>.iwd` contains the verified multi-mip files.
 
 ## Assets
+
+All of these come from the prototype, so they stay in the private build.
 
 - 7 developer grid textures (`case`, `case512`, `case512green`, `case512green2`, `1024_green`, `1024_grey`, `case_normal`) deswizzled from Xenos Morton micro-tiles into standard PC IWI v6 format.
 - 1 master 6-face skybox cubemap (`chechnya_ft.iwi`, 25.1 MB, 1024x1024, BGR8).

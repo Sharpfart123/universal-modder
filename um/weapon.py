@@ -7,8 +7,15 @@
     um weapon diff raw/weapons/sp/colt raw/weapons/sp/colt_dirty_harry
 
 Inspects, parses, and edits Call of Duty: World at War and CoD4 weapon files.
-Handles the engine's slash-delimited dictionary format, preserving all 300+ properties
-including viewmodel animations, recoil kick, and ballistic damage falloff curves.
+Handles the engine's backslash-delimited dictionary format (WEAPONFILE\\key\\value\\...),
+preserving all 300+ properties including viewmodel animations, recoil kick, and
+ballistic damage falloff curves.
+
+set and clone write a new file (-o / the destination): point it at your mod's copy, never
+at the Mod Tools' raw/ folder or the game's files. set --in-place edits the file itself.
+Weapon files are Treyarch's and Infinity Ward's data: keep copies of raw/ files out of any
+repo, and ship your changes as a diff or a build step that runs set/clone on the player's
+own raw/ files.
 """
 from __future__ import annotations
 
@@ -25,7 +32,7 @@ def parse_weapon(path: str | Path) -> tuple[str, dict[str, str], list[str]]:
     if not p.is_file():
         die(f"weapon file not found: {p}")
 
-    text = p.read_text(encoding="utf-8", errors="ignore").strip()
+    text = p.read_text(encoding="latin-1").strip()  # byte-for-byte, whatever the encoding
     tokens = text.split("\\")
     header = tokens[0] if tokens else "WEAPONFILE"
 
@@ -59,7 +66,7 @@ def write_weapon(path: str | Path, header: str, props: dict[str, str], ordered_k
             parts.append(str(v))
 
     serialized = "\\".join(parts) + "\\"
-    p.write_text(serialized, encoding="utf-8")
+    p.write_text(serialized, encoding="latin-1")
 
 
 def get_weapon(path: str | Path, key: str | None = None):
@@ -95,8 +102,10 @@ def get_weapon(path: str | Path, key: str | None = None):
             print(f"  {h:22} = {props[h]}")
 
 
-def set_weapon(path: str | Path, updates: list[str], out: str | Path | None = None):
+def set_weapon(path: str | Path, updates: list[str], out: str | Path | None = None, in_place: bool = False):
     """Set key=value properties in a weapon file."""
+    if not out and not in_place:
+        die("pass -o <file> (your mod's copy) or --in-place; set never overwrites its input by default")
     header, props, ordered_keys = parse_weapon(path)
     dest = Path(out) if out else Path(path)
 
@@ -175,7 +184,7 @@ def main(a):
     if a.cmd == "get":
         get_weapon(a.file, a.key)
     elif a.cmd == "set":
-        set_weapon(a.file, a.updates, a.out)
+        set_weapon(a.file, a.updates, a.out, a.in_place)
     elif a.cmd == "clone":
         clone_weapon(a.src, a.dst, a.damage, a.clip, a.ammo, a.explosive)
     elif a.cmd == "diff":
@@ -199,7 +208,8 @@ def register(sub):
     q = cs.add_parser("set", help="modify weapon properties and save to file")
     q.add_argument("file", help="path to weapon file")
     q.add_argument("updates", nargs="+", help="key=value pairs (e.g. damage=500 clipSize=30)")
-    q.add_argument("-o", "--out", help="output file path (defaults to in-place edit)")
+    q.add_argument("-o", "--out", help="output file path (your mod's copy)")
+    q.add_argument("--in-place", action="store_true", help="overwrite the input file instead")
     q.set_defaults(func=main)
 
     q = cs.add_parser("clone", help="clone a weapon with stats or explosive ammo presets")

@@ -4,8 +4,14 @@
     um iwi iwi2png input.iwi output.png
 
 Converts between standard PNG images and Call of Duty: World at War / CoD4
-IWI version 6 textures. Supports DXT1 (diffuse/opaque) and DXT5 (alpha/normal),
-as well as reverse mipmap order required by the Treyarch T4 / IW 3.0 engine.
+IWI version 6 textures. png2iwi writes DXT1 (diffuse/opaque) or DXT5 (alpha/normal),
+with the mip chain stored smallest first as the Treyarch T4 / IW 3.0 engine expects;
+iwi2png reads DXT1, DXT3 and DXT5 2D textures (not cubemaps or uncompressed formats).
+
+The 28-byte header follows OpenAssetTools' IwiTypes.h: "IWi", version 6, format,
+flags, width, height, depth, then the file size for picmip 0-3. --mips writes the
+whole chain down to 1x1 (flags 0); without it the file has one level (flags 0x03:
+no picmip, no mipmaps).
 """
 from __future__ import annotations
 
@@ -24,13 +30,21 @@ from um.common import die
 IWI_MAGIC = b"IWi"
 IWI_VERSION = 6
 
-# Format IDs
-FMT_ARGB8 = 0x01
+# Format IDs (OpenAssetTools iwi6::IwiFormat)
+FMT_RGBA8 = 0x01
 FMT_RGB8 = 0x02
-FMT_A8 = 0x04
+FMT_LA8 = 0x03
+FMT_L8 = 0x04
+FMT_A8 = 0x05
 FMT_DXT1 = 0x0B
 FMT_DXT3 = 0x0C
 FMT_DXT5 = 0x0D
+
+# Flags (iwi6::IwiFlags)
+FLAG_NOPICMIP = 0x01
+FLAG_NOMIPMAPS = 0x02
+FLAG_CUBEMAP = 0x04
+FLAG_VOLMAP = 0x08
 
 
 def _rgb_to_565(rgb: np.ndarray) -> int:
@@ -135,49 +149,41 @@ def png_to_iwi(src: str | Path, dst: str | Path, fmt_name: str = "dxt1", generat
     if not src_p.is_file():
         die(f"source image not found: {src_p}")
 
-    im = Image.open(src_p)
+    im = Image.open(src_p).convert("RGBA")
     w, h = im.size
 
     fmt_id = FMT_DXT5 if fmt_name.lower() == "dxt5" else FMT_DXT1
-    flags = 0xC1 if generate_mips else 0x03
+    # flags 0 (wrapping, picmip allowed) as OpenAssetTools writes them; one level: no picmip, no mipmaps
+    flags = 0x00 if generate_mips else FLAG_NOPICMIP | FLAG_NOMIPMAPS
 
-    # Build mip levels
+    # Build mip levels down to 1x1 on the longer side: the loader expects the whole chain
+    # (a 512x512 DXT1 file with mips is 174,804 bytes; levels under 4x4 still take one block)
     mips = [im]
     if generate_mips:
         cur_w, cur_h = w, h
-        while cur_w > 4 and cur_h > 4:
-            cur_w = max(4, cur_w // 2)
-            cur_h = max(4, cur_h // 2)
+        while max(cur_w, cur_h) > 1:
+            cur_w = max(1, cur_w // 2)
+            cur_h = max(1, cur_h // 2)
             mips.append(im.resize((cur_w, cur_h), Image.Resampling.LANCZOS))
 
-    # Encode mips in reverse order: smallest first, full mip0 last
-    encoded_mips = []
-    for mip in reversed(mips):
-        encoded_mips.append(encode_dxt(mip, fmt_name.lower()))
+    # Encode each level; the file stores them in reverse order: smallest first, full mip0 last
+    encoded = [encode_dxt(mip, fmt_name.lower()) for mip in mips]
+    encoded_mips = list(reversed(encoded))
 
-    # Calculate mip offsets from end
+    # fileSizeForPicmip[i]: the file size up to and including mip level i (level 0 = the whole file).
+    # Entries past the last level repeat it, so a single-level file has the file size four times.
     header_len = 28
-    total_len = header_len + sum(len(m) for m in encoded_mips)
-
-    mip_offsets = [total_len, total_len, total_len, total_len]
-    if generate_mips and len(mips) >= 4:
-        # Offsets where mips end in the file
-        cur_end = total_len
-        # mip0 ends at total_len
-        mip_offsets[0] = cur_end
-        # mip1 ends before mip0
-        cur_end -= len(encoded_mips[-1])
-        mip_offsets[1] = cur_end
-        # mip2 ends before mip1
-        cur_end -= len(encoded_mips[-2])
-        mip_offsets[2] = cur_end
-        # mip3 ends before mip2
-        cur_end -= len(encoded_mips[-3])
-        mip_offsets[3] = cur_end
+    total_len = header_len + sum(len(m) for m in encoded)
+    file_sizes = []
+    size = total_len
+    for level in range(4):
+        file_sizes.append(size)
+        if level + 1 < len(encoded):
+            size -= len(encoded[level])
 
     header = (
         IWI_MAGIC
-        + struct.pack("<BBBHHHIIII", IWI_VERSION, fmt_id, flags, h, w, 1, *mip_offsets)
+        + struct.pack("<BBBHHHIIII", IWI_VERSION, fmt_id, flags, w, h, 1, *file_sizes)
     )
 
     dst_p.parent.mkdir(parents=True, exist_ok=True)
@@ -189,22 +195,33 @@ def png_to_iwi(src: str | Path, dst: str | Path, fmt_name: str = "dxt1", generat
     print(f"Created IWI v6: {dst_p} ({w}x{h}, {fmt_name.upper()}, {total_len:,} bytes)")
 
 
-def _decode_dxt1_block(data: bytes) -> np.ndarray:
+def _decode_dxt1_block(data: bytes, four_color: bool = False) -> np.ndarray:
+    """One 4x4 colour block as RGBA. DXT3/DXT5 colour blocks always use four colours (four_color=True);
+    in DXT1, c0 <= c1 selects three colours plus transparent black."""
     c0, c1, mask = struct.unpack("<HHI", data)
     p0 = _565_to_rgb(c0).astype(float)
     p1 = _565_to_rgb(c1).astype(float)
 
-    if c0 > c1:
+    transparent = None
+    if c0 > c1 or four_color:
         pal = [p0, p1, (2.0 * p0 + p1) / 3.0, (p0 + 2.0 * p1) / 3.0]
     else:
         pal = [p0, p1, (p0 + p1) / 2.0, np.array([0, 0, 0], dtype=float)]
+        transparent = 3
 
-    pixels = np.zeros((16, 3), dtype=np.uint8)
+    pixels = np.zeros((16, 4), dtype=np.uint8)
     for idx in range(16):
         b = (mask >> (idx * 2)) & 3
-        pixels[idx] = pal[b].astype(np.uint8)
+        pixels[idx, :3] = pal[b].astype(np.uint8)
+        pixels[idx, 3] = 0 if b == transparent else 255
 
-    return pixels.reshape(4, 4, 3)
+    return pixels.reshape(4, 4, 4)
+
+
+def _decode_dxt3_alpha_block(data: bytes) -> np.ndarray:
+    """DXT3 alpha: 4 explicit bits per pixel, row by row."""
+    bits = int.from_bytes(data[:8], "little")
+    return np.array([((bits >> (4 * i)) & 0xF) * 17 for i in range(16)], dtype=np.uint8).reshape(4, 4)
 
 
 def _decode_dxt5_alpha_block(data: bytes) -> np.ndarray:
@@ -247,8 +264,10 @@ def iwi_to_png(src: str | Path, dst: str | Path):
         die(f"unsupported IWI version: {ver} (expected version 6)")
 
     fmt_id, flags = struct.unpack("<BB", data[4:6])
-    h, w, d = struct.unpack("<HHH", data[6:12])
+    w, h, d = struct.unpack("<HHH", data[6:12])  # width first (OpenAssetTools IwiWriter6 / LoadIwi6)
     mip_offsets = struct.unpack("<IIII", data[12:28])
+    if flags & (FLAG_CUBEMAP | FLAG_VOLMAP):
+        die("cubemap and volume IWIs aren't supported (2D textures only)")
 
     # mip0 is stored at the end of the file
     mip0_end = mip_offsets[0]
@@ -261,7 +280,7 @@ def iwi_to_png(src: str | Path, dst: str | Path):
         mip0_start = mip0_end - mip0_len
         payload = data[mip0_start:mip0_end]
 
-        img_arr = np.zeros((blocks_h * 4, blocks_w * 4, 3), dtype=np.uint8)
+        img_arr = np.zeros((blocks_h * 4, blocks_w * 4, 4), dtype=np.uint8)
         offset = 0
         for by in range(blocks_h):
             for bx in range(blocks_w):
@@ -269,7 +288,7 @@ def iwi_to_png(src: str | Path, dst: str | Path):
                 img_arr[by * 4 : by * 4 + 4, bx * 4 : bx * 4 + 4] = _decode_dxt1_block(bdata)
                 offset += 8
 
-        out_img = Image.fromarray(img_arr[:h, :w], "RGB")
+        out_img = Image.fromarray(img_arr[:h, :w])
 
     elif fmt_id in (FMT_DXT3, FMT_DXT5):
         block_size = 16
@@ -282,15 +301,18 @@ def iwi_to_png(src: str | Path, dst: str | Path):
         for by in range(blocks_h):
             for bx in range(blocks_w):
                 bdata = payload[offset : offset + 16]
-                alphas = _decode_dxt5_alpha_block(bdata[:8])
-                rgb = _decode_dxt1_block(bdata[8:])
-                img_arr[by * 4 : by * 4 + 4, bx * 4 : bx * 4 + 4, :3] = rgb
+                if fmt_id == FMT_DXT3:
+                    alphas = _decode_dxt3_alpha_block(bdata[:8])
+                else:
+                    alphas = _decode_dxt5_alpha_block(bdata[:8])
+                rgba = _decode_dxt1_block(bdata[8:], four_color=True)
+                img_arr[by * 4 : by * 4 + 4, bx * 4 : bx * 4 + 4, :3] = rgba[:, :, :3]
                 img_arr[by * 4 : by * 4 + 4, bx * 4 : bx * 4 + 4, 3] = alphas
                 offset += 16
 
-        out_img = Image.fromarray(img_arr[:h, :w], "RGBA")
+        out_img = Image.fromarray(img_arr[:h, :w])
     else:
-        die(f"unsupported format ID in IWI: 0x{fmt_id:02X}")
+        die(f"unsupported format ID in IWI: 0x{fmt_id:02X} (iwi2png reads DXT1 0x0B, DXT3 0x0C and DXT5 0x0D)")
 
     dst_p.parent.mkdir(parents=True, exist_ok=True)
     out_img.save(dst_p, "PNG")

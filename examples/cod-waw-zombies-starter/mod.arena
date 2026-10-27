@@ -1,6 +1,0 @@
-{
-	map			"nazi_zombie_prototype"
-	longname	"Nacht der Untoten (Starter Mod)"
-	loadscreen	"loadscreen_nazi_zombie_prototype"
-	gametype	"cmp arc"
-}

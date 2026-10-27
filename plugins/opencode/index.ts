@@ -55,7 +55,7 @@ const GROUPS = [
   { name: "backup", blurb: "snapshot and restore a game's save files before a modded launch" },
   { name: "publish", blurb: "pre-release lint for a mod: no game files, no decompiled code, no leaked keys" },
   { name: "kb", blurb: "search, scaffold, check and index the field-note knowledge base (search / new / check / index)" },
-  { name: "fastfile", blurb: "inspect and dump assets and raw scripts from Call of Duty fastfiles (.ff)" },
+  { name: "fastfile", blurb: "list and dump the rawfiles (GSC, CSC, menus) in Call of Duty 4 / World at War fastfiles (.ff)" },
   { name: "iwi", blurb: "convert and decode Call of Duty IWI v6 textures (png2iwi / iwi2png)" },
   { name: "weapon", blurb: "inspect, edit, clone, and diff Call of Duty weapon files" },
 ]

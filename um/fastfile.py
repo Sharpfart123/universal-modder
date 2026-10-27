@@ -8,6 +8,12 @@ Decompresses retail Call of Duty: World at War (T4) and Call of Duty 4 (IW 3.0)
 FastFiles and extracts all embedded RawFiles (GSC scripts, CSC client scripts,
 menu files, CSV string/sound tables, arena files, and configs). In these titles,
 GSC/CSC gameplay scripts are stored as 100% human-readable plain text source.
+
+Read-only: it reads unsigned PC zones (IWffu100) and never writes, repacks or signs
+one. Signed zones (IWff0100) are refused. RawFiles are found by scanning the zone
+for their serialized layout, not by a full zone parser, so treat a missing file as
+"not found by the scan". The dump is the game's own code from your install: keep it
+outside any repo and never publish it.
 """
 from __future__ import annotations
 
@@ -27,11 +33,14 @@ RAWFILE_PATTERN = re.compile(
 )
 
 
+# PC zone versions (the uint32 after the magic), as in OpenAssetTools' IW3 and T4 zone constants
 SUPPORTED_VERSIONS = {
     387: "Call of Duty: World at War (Treyarch T4)",
     5: "Call of Duty 4: Modern Warfare (IW 3.0)",
-    334: "Call of Duty 4: Modern Warfare (IW 3.0 asset v334)",
 }
+
+MAGIC_UNSIGNED = b"IWffu100"
+MAGIC_SIGNED = b"IWff0100"
 
 
 def decompress_fastfile(path: str | Path) -> tuple[int, bytes]:
@@ -42,7 +51,10 @@ def decompress_fastfile(path: str | Path) -> tuple[int, bytes]:
 
     with open(p, "rb") as f:
         magic = f.read(8)
-        if magic not in (b"IWffu100", b"IWff0100"):
+        if magic == MAGIC_SIGNED:
+            die(f"{p.name} is a signed fastfile (IWff0100). um fastfile reads unsigned PC zones (IWffu100) only "
+                "and never touches signatures.")
+        if magic != MAGIC_UNSIGNED:
             die(f"unrecognized FastFile header magic: {magic!r} in {p.name}")
         version = struct.unpack("<I", f.read(4))[0]
         compressed_data = f.read()
@@ -50,9 +62,9 @@ def decompress_fastfile(path: str | Path) -> tuple[int, bytes]:
     if version not in SUPPORTED_VERSIONS:
         print(
             f"WARNING: FastFile version {version} detected in {p.name}.\n"
-            f"  This extractor specifically targets Treyarch T4 (WaW v387) and IW 3.0 (CoD4 v334).\n"
-            f"  Later IW engines (MW2/IW 4.0, Black Ops/T5, BO2/T6) use different layouts, encryption,\n"
-            f"  or compiled GSC bytecode instead of plain-text RawFiles.",
+            f"  This extractor targets World at War PC (v387) and Call of Duty 4 PC (v5).\n"
+            f"  Other titles lay out zones and RawFiles differently (MW2 zlib-compresses them,\n"
+            f"  Black Ops II compiles GSC to bytecode), so the scan may miss or misread files.",
             file=sys.stderr,
         )
 

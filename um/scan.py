@@ -415,8 +415,8 @@ KNOWN = {
     "the binding of isaac: rebirth": ("Lua mod in <install>/mods/<name>/ (main.lua, content/*.xml, resources/ overrides), IsaacDocs API; "
                                       "EnableMods=1 + EnableDebugConsole=1 in options.ini; vanilla assets via tools/ResourceExtractor",
                                       "isaac.md"),
-    "call of duty: world at war": ("dual route: zero-linker data override in mods/<name>/*.iwd (GSC/CSC, IWI textures, weapons) + mod.ff via linker_pc.exe for binary assets; T4M (d3d9.dll) raises limits", "iw-engine.md"),
-    "call of duty 4: modern warfare": ("data overrides in mods/<name>/*.iwd + mod.ff via linker_pc.exe; CoD4X for modern client/server engine extensions", "iw-engine.md"),
+    "call of duty: world at war": ("dual route: zero-linker data override in mods/<name>/*.iwd (GSC/CSC, IWI textures, weapons) + mod.ff via linker_pc.exe for binary assets; T4M (d3d9.dll) raises asset limits; solo or a co-op lobby you host, never public servers", "iw-engine.md"),
+    "call of duty 4: modern warfare": ("data overrides in mods/<name>/*.iwd + mod.ff via linker_pc.exe; single-player, or a multiplayer server you run (CoD4X)", "iw-engine.md"),
     "minecraft": ("Fabric (Mixin) or NeoForge", "minecraft.md"),
 }
 
@@ -431,7 +431,7 @@ KNOWN_FILES = [
 
 # save/profile folders that don't follow the game's name ({profile}, {documents}, {appdata}, {localappdata})
 KNOWN_SAVES = {
-    "call of duty: world at war": ["{localappdata}/Activision/CoDWaW/mods", "{localappdata}/Activision/CoDWaW/players"],
+    "call of duty: world at war": ["{localappdata}/Activision/CoDWaW/players"],
     "age of empires ii: definitive edition": ["{profile}/Games/Age of Empires 2 DE"],
     "terraria": ["{documents}/My Games/Terraria"],
     "tmodloader": ["{documents}/My Games/Terraria/tModLoader"],
@@ -499,7 +499,7 @@ ENGINES = {
     "defold": ("Defold", "misc-engines.md", "unpack game.arcd; Lua scripts"),
     "cocos": ("Cocos2d-x", "native.md", "Lua/JS scripts if bundled; else native hooks"),
     "haxe": ("Haxe/OpenFL/HaxeFlixel", "misc-engines.md", "assets/ overrides; hscript mod loaders where present (Polymod)"),
-    "iw": ("IW engine (Call of Duty)", "iw-engine.md", "data overrides in mods/<name>/*.iwd (GSC/CSC scripts, IWI textures, weapons) + fastfile (.ff) zone assets via linker_pc.exe or um fastfile"),
+    "iw": ("IW engine (Call of Duty)", "iw-engine.md", "data overrides in mods/<name>/*.iwd (GSC/CSC scripts, IWI textures, weapons) + mod.ff via the Mod Tools' linker_pc.exe; um fastfile reads rawfiles out of your own .ff"),
     "native": ("Unknown native engine", "native.md", "proxy-DLL loader + function hooks (MinHook/SafetyHook), memory reading; Ghidra/IDA + x64dbg + Cheat Engine"),
 }
 
