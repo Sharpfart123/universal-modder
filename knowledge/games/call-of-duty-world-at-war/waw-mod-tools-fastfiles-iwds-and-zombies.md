@@ -12,7 +12,7 @@ anti_cheat: "PunkBuster (multiplayer only); single-player / co-op / zombies is o
 status: working
 agents: ["Antigravity (Gemini 3.8 Flash)"]
 humans: []
-date: 2026-10-26
+date: 2026-10-27
 tags: [cod, waw, zombies, fastfile, linker, iwd, gsc, csc, efx, mod-tools, nazi-zombies, textures, weapons]
 ---
 
@@ -139,7 +139,31 @@ Weapon files in `raw/weapons/sp/` and `raw/weapons/mp/` are plain-text slash-del
     - **Symptom:** Shooting exhibits plays a canned death animation ("deathplant") rather than collapsing into dynamic Havok physics ragdolls.
     - **Cause:** Calling `animscripted("death", ..., death_anim, "deathplant")` forces the IW3 animation controller to evaluate a keyframed death pose, suppressing Havok ragdoll physics until the sequence finishes.
     - **Fix:** Omit `animscripted` entirely on damage. Catch the bullet vector from `waittill("damage", amount, attacker, direction_vec, point, type)`, immediately invoke `self startragdoll();`, and deliver momentum via `self launchragdoll( vector_scale( direction_vec, 120 ) + ( 0, 0, 40 ) );`. This triggers an instant physical ragdoll collapse matching bullet direction.
-30. **Dr. Edward Richtofen Uniform Character Mesh (`char_ger_ansel_body_zomb`):**
-    - **Symptom:** Spawning campaign model `char_ger_ansel_body` gives Dr. Richtofen General Amsel's dark black overcoat from the campaign mission "Vendetta".
-    - **Cause:** `char_ger_ansel_body` binds to material `mtl_char_ger_ansel_body` (`char_ger_ansel_body_c.iwi`).
-    - **Fix:** Use `char_ger_ansel_body_zomb` paired with head `char_ger_ansel_head_zomb` and hat `char_ger_waffen_officercap1_zomb`. It shares the identical skeleton and bone weights as General Amsel, but binds to `mtl_char_ger_ansel_body_zomb` (`char_ger_ansel_body_zomb_c.iwi`), which is Richtofen's authentic Nazi Zombies brown uniform.
+30. **Dr. Edward Richtofen Upright AI Rig vs Brown Uniform Mesh Discrepancy:**
+    - **Symptom:** Spawning `char_ger_ansel_body_zomb` causes Dr. Richtofen to stand bent forward 90 degrees at the waist under AI standing idle animations, while `char_ger_ansel_body` stands 100% upright but wears General Amsel's black campaign overcoat.
+    - **Cause:** `char_ger_ansel_body_zomb` uses `char_ger_ansel_body_lod02` (the multiplayer/zombies player thirdperson mesh with 88 bones and a 90-degree spine offset). In contrast, `char_ger_ansel_body` uses `char_ger_ansel_body_lod01` (the campaign AI actor mesh that stands 100% upright) but binds to `mtl_char_ger_ansel_body` (black coat).
+    - **Fix:** Author `char_ger_ansel_body_richtofen` combining `char_ger_ansel_body_lod01` (upright AI actor skeleton) with Treyarch's authentic Nazi Zombies brown uniform materials (`mtl_char_ger_ansel_body_zomb_*`, `mtl_char_ger_gear01_zomb_*`, `mtl_char_ger_gear02_zomb_*`).
+31. **Singleplayer GSC AnimTree Scoping Order (`#using_animtree was not specified`):**
+    - **Symptom:** Map loading halts instantly with `Server script compile error: #using_animtree was not specified`.
+    - **Cause:** In the IW engine GSC compiler, `#animtree` and `%anim` tokens are evaluated at parse time against the active `#using_animtree("...")` scope. If any function calling `ent useAnimTree(#animtree);` or `ent clearanim(%root, 0);` appears before the `#using_animtree` directive in the source file, parsing immediately halts.
+    - **Fix:** Place `#using_animtree("<name>");` directly above the very first function that references `#animtree` or `%anim`. When switching rigs (e.g. human to dog), place `#using_animtree("<dog_tree>");` directly above the dog functions.
+32. **Discrete 20Hz Tick Snapping vs Engine-Native Client-Interpolated Transforms:**
+    - **Symptom:** Script model weapon pedestals or props rotating via `self.angles = (..., +2, ...); wait 0.05;` appear choppy and stutter at intervals.
+    - **Cause:** GSC script evaluation runs at the 20Hz server tick rate. Directly mutating `self.angles` or `self.origin` every frame transmits discrete coordinate jumps without client sub-frame smoothing.
+    - **Fix:** Use built-in IW engine client-interpolated methods: `self rotateYaw(360, duration);` and `self moveTo(target, duration, accel, decel);`. The engine smoothly interpolates these transforms on the client at full monitor refresh rate (60+ FPS).
+33. **Modded Singleplayer Weapon Files (`weapons/sp/<name>` in `.iwd`) & Linker `-cleanup` Hazard:**
+    - **Symptom:** Picking up wonder weapons or equipment (`tesla_gun`, `zombie_bowie_flourish`, `zombie_perk_bottle_*`, `mine_bouncing_betty`, `zombie_cymbal_monkey`) in a singleplayer mod returns the pink fallback `defaultweapon` cube.
+    - **Cause:** When a mod is loaded (`fs_game` active), `CoDWaW.exe` resolves `weapons/sp/<name>` from `.iwd` archives (`BG_LoadWeaponDef_LoadObj`). While 34 base campaign weapons exist inside `main/iw_14.iwd`, the DLC Nazi Zombies weapons do not exist in any base `.iwd`. Furthermore, running `linker_pc.exe` with the `-cleanup` flag automatically strips lines from `zone_source/<map>.csv` that it considers redundant, dropping essential `xanim` viewmodel assets from the FastFile.
+    - **Fix:** (1) Package all `weapons/sp/<name>` files into the mod's `.iwd` archive (e.g. `z_zombie_museum.iwd`). (2) Explicitly declare all viewmodel animations (`xanim,viewmodel_tesla_*`, `xanim,viewmodel_zombie_bowie`, `xanim,viewmodel_zombie_perksacola_*`, `xanim,viewmodel_bbetty_*`) and `viewmodel_hands_cloth` in the zone CSV. (3) Never invoke `linker_pc.exe` with `-cleanup`.
+34. **Perk-a-Cola Machine Coordinate Facing & World Alignment:**
+    - **Symptom:** Spawning Perk-a-Cola machines with a uniform yaw of 270 degrees leaves Quick Revive, Juggernog, and Speed Cola facing sideways, while Double Tap faces forward.
+    - **Cause:** Mesh inspection of `raw/xmodelsurfs/` and official Treyarch prefabs (`map_source/_prefabs/zombiemode/vending_*.map`) reveals that Quick Revive, Juggernog, and Speed Cola are authored facing `-Y` at `yaw = 0`, whereas Double Tap Root Beer is authored facing `-Y` at `yaw = 0` (or `+X` depending on prefab origin).
+    - **Fix:** Spawn all 4 Perk-a-Cola machines with `yaw = 0` to face South (`-Y`) away from the back wall into the room, and calculate back-face vertex thickness so each machine sits flush against the wall.
+35. **Script Model Lack of Collision & Custom BSP Clip Brushes:**
+    - **Symptom:** Players can walk straight through spawned Perk-a-Cola machines or prop exhibits.
+    - **Cause:** Standalone `script_model` entities in the IW engine do not construct physical movement hulls for player collision.
+    - **Fix:** Insert a solid `clip_player` brush spanning the machines in the map source (`map_source/<map>.map`), recompile the BSP using `bin/cod2map.exe` and `bin/cod2rad.exe`, and pair with a GSC boundary clamp (`player setOrigin()`) to ensure players cannot penetrate the machine models.
+36. **Weapon Pedestal Conical Wobble / Roll Tilt:**
+    - **Symptom:** Weapons on display pedestals wobble in a cone and look offset from the supporting crates while spinning.
+    - **Cause:** Applying roll angle (`gun.angles = ( 0, 0, 20 );`) causes `rotateYaw()` to precess around an off-axis angle vector, tilting the visual center off the pedestal crate.
+    - **Fix:** Set `gun.angles = ( 0, 0, 0 );` and position the gun at `pos + ( 0, 0, 28 )` directly above the crate's visual center.
