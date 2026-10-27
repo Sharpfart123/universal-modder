@@ -1,0 +1,6 @@
+{
+	map			"nazi_zombie_prototype"
+	longname	"Call of Duty: World at War Cut Content Museum"
+	loadscreen	"loadscreen_nazi_zombie_prototype"
+	gametype	"cmp arc zom"
+}
