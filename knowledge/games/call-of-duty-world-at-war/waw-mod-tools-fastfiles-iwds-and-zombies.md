@@ -167,3 +167,8 @@ Weapon files in `raw/weapons/sp/` and `raw/weapons/mp/` are plain-text slash-del
     - **Symptom:** Weapons on display pedestals wobble in a cone and look offset from the supporting crates while spinning.
     - **Cause:** Applying roll angle (`gun.angles = ( 0, 0, 20 );`) causes `rotateYaw()` to precess around an off-axis angle vector, tilting the visual center off the pedestal crate.
     - **Fix:** Set `gun.angles = ( 0, 0, 0 );` and position the gun at `pos + ( 0, 0, 28 )` directly above the crate's visual center.
+
+37. **3D Spatialized Prop Audio vs 2D Player Head Playback:**
+    - **Symptom:** Playing interactive object audio or Perk-a-Cola jingles via `player playsound( jingle );` sounds flat, maintaining constant maximum volume everywhere and lacking directional stereo panning, distance falloff attenuation, and obstacle occlusion when moving away.
+    - **Cause:** Calling `playsound()` on the local player entity attaches the 3D sound origin directly to the player's audio listener head node, making calculated emitter-to-listener distance permanently 0.
+    - **Fix:** Spawn a dedicated `script_origin` at the machine or prop's physical speaker location (e.g. `machine.origin + ( 0, 0, 48 )`), invoke `playsound( jingle, "sound_done" )` on the origin entity, and `waittill( "sound_done" )` before deleting. This activates the IW sound system's 3D spatialization (`spatialized: 3d`, `dist_min: 50`, `dist_max: 500`, `occlusion_level: 0.25`), ensuring the audio realistically pans, quiets as distance increases, and attenuates behind walls. Deleting the `script_origin` entity also allows cleanly interrupting or resetting playback upon subsequent interaction.
